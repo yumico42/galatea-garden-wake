@@ -13,10 +13,11 @@ Zeabur 等容器平台会在重启、迁移或 GitHub 更新后创建新容器�
 - 每次连接都必须先由你手动 `arm`，闩锁在建连前立即消耗；
 - 闩锁保存在 `/data` 的 Zeabur Volume 中，容器重启不会恢复；
 - Bridge 退出后绝不在容器内重新启动；
-- 本地健康服务继续返回当前 `stopped` 状态，避免平台形成重连循环；
+- 本地 `/live` 只表示监督进程存活（容器 HEALTHCHECK 用它，Bridge 停止后仍返回 200，避免平台形成重连循环）；
+- `/health` 反映 Bridge 真实状态：仅 `running` 返回 200，`not_armed` / `stopped` / `blocked` 等返回 503，只用于监控告警，不要把它配成会触发重启的健康检查；
 - 修好原因后，由你手动检查、`arm`，再只重启 Zeabur 服务一次。
 
-健康检查只读取本地进程状态，绝不会连接 Garden。
+`/live`、`/health`、`/status` 都只读取本地进程状态，绝不会连接 Garden。
 
 ## 部署前准备
 

@@ -4,6 +4,8 @@ import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
 
+import { routeSupervisorRequest } from "./health.mjs";
+
 import {
   assertPersistentState,
   consumeArm,
@@ -40,18 +42,14 @@ async function persistState() {
 
 const server = createServer((request, response) => {
   const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
-  if (path !== "/" && path !== "/health" && path !== "/status") {
-    response.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ error: "not found" }));
-    return;
-  }
-  // Deliberately remain healthy after the bridge stops.  Exiting PID 1 would
-  // let an orchestrator create an automated Garden reconnection loop.
-  response.writeHead(200, {
+  // /live stays 200 after the bridge stops so the container is never restarted into an
+  // automated Garden reconnection loop; /health reports the real bridge state (503 unless running).
+  const { code, body } = routeSupervisorRequest(path, publicState());
+  response.writeHead(code, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   });
-  response.end(JSON.stringify(publicState()));
+  response.end(JSON.stringify(body));
 });
 
 function park(reason) {
